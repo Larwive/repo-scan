@@ -1,6 +1,9 @@
 #include <cstdio>
 #include <cstdlib>
+#include <fstream>
 #include <string>
+
+#include <nlohmann/json.hpp>
 
 #include "issue.hpp"
 #include "scanner.hpp"
@@ -18,17 +21,25 @@ public:
     return std::system(cmd.c_str()) == 0;
   }
 
-  Issue scan(const std::string &repoPath) override {
+  std::vector<Issue> scan(const std::string &repoPath) override {
     std::string semgrep_cmd = "semgrep scan --json -o " + repoPath + "/repo-scan/semgrep.json " + repoPath;
     std::system(semgrep_cmd.c_str());
 
-    Issue semgrep_result = {
-        "semgrep", // scanner
-        "",        // type
-        "",        // severity
-        "",        // file
-        ""         // description
-    };
-    return semgrep_result;
+    std::vector<Issue> issues;
+    std::ifstream file(repoPath + "/repo-scan/semgrep.json");
+    if (file.is_open()) {
+      nlohmann::json j;
+      file >> j;
+      for (const auto &result : j["results"]) {
+        issues.push_back({
+            "semgrep",
+            result["check_id"],
+            result["extra"]["severity"],
+            result["path"],
+            result["extra"]["message"]
+        });
+      }
+    }
+    return issues;
   }
 };

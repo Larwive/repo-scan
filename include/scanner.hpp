@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <vector>
 
 #include "issue.hpp"
 
@@ -12,5 +13,5 @@ public:
 
   virtual bool isAvailable() const = 0;
 
-  virtual Issue scan(const std::string &repoPath) = 0;
+  virtual std::vector<Issue> scan(const std::string &repoPath) = 0;
 };
