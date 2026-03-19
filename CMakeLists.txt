@@ -11,6 +11,16 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+include(FetchContent)
+
+FetchContent_Declare(
+  nlohmann_json
+  GIT_REPOSITORY https://github.com/nlohmann/json.git
+  GIT_TAG        v3.11.3
+)
+
+FetchContent_MakeAvailable(nlohmann_json)
+
 add_library(repo-scan_lib
     src/orchestrator.cpp
 )
@@ -31,6 +41,11 @@ target_include_directories(repo-scan_lib
 
 add_executable(repo-scan
     src/main.cpp
+)
+
+target_link_libraries(repo-scan_lib
+  PUBLIC
+    nlohmann_json::nlohmann_json
 )
 
 target_link_libraries(repo-scan PRIVATE repo-scan_lib)
