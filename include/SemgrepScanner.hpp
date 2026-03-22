@@ -22,7 +22,7 @@ public:
   }
 
   std::vector<Issue> scan(const std::string &repoPath) override {
-    std::string semgrep_cmd = "semgrep scan --json -o " + repoPath + "/repo-scan/semgrep.json " + repoPath;
+    std::string semgrep_cmd = "semgrep scan --json -o " + repoPath + "/repo-scan/semgrep.json " + repoPath + " > " + repoPath + "/repo-scan/semgrep.log 2>&1";
     std::system(semgrep_cmd.c_str());
 
     std::vector<Issue> issues;

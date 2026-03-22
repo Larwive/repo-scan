@@ -1,9 +1,12 @@
+#include <filesystem>
 #include <iostream>
 #include <memory>
 
 #include "SemgrepScanner.hpp"
 #include "orchestrator.hpp"
 #include "scanner.hpp"
+
+namespace fs = std::filesystem;
 
 ScanOrchestrator::ScanOrchestrator() {
   auto semgrep = std::make_unique<SemgrepScanner>();
@@ -20,17 +23,26 @@ Report ScanOrchestrator::run(const std::string &repoUrl) {
   std::string mkdir_command = "mkdir -p " + repo_scan_path;
   std::system(mkdir_command.c_str());
 
-  std::string repo_path =
-      repo_scan_path + repoUrl.substr(repoUrl.find_last_of("/") + 1);
-  std::string cmd = "cd " + repo_scan_path + ";git clone " + repoUrl;
-  std::system(cmd.c_str());
+  std::string repo_name = repoUrl.substr(repoUrl.find_last_of("/") + 1);
+  std::string repo_path = repo_scan_path + repo_name;
 
-  Report report;
-
-  for (auto &scanner : scanners) {
-    auto issue = scanner->scan(repo_path);
-    report.addIssue(issue);
+  if (fs::exists(repo_path)) {
+    if (fs::exists(repo_path + "/.git")) {
+      std::cout << "Repository already present, skipping clone.\n";
+    } else {
+      std::cerr << "Error: '" << repo_path
+                << "' exists but is not a git repository. Naming error ?\n";
+      return {};
+    }
+  } else {
+    std::string cmd = "git clone " + repoUrl + " " + repo_path;
+    std::system(cmd.c_str());
   }
 
+  Report report;
+  for (auto &scanner : scanners) {
+    auto issues = scanner->scan(repo_path);
+    report.addIssues(issues);
+  }
   return report;
 }
