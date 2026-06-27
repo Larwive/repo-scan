@@ -30,7 +30,7 @@ set_target_properties(repo-scan_lib PROPERTIES
 )
 
 target_compile_options(repo-scan_lib PRIVATE
-    -Wall -Wextra -Wpedantic
+    -Wall -Wextra -Wpedantic -Werror
 )
 
 target_include_directories(repo-scan_lib
@@ -43,9 +43,40 @@ add_executable(repo-scan
     src/main.cpp
 )
 
+target_compile_options(repo-scan PRIVATE
+    -Wall -Wextra -Wpedantic -Werror
+)
+
 target_link_libraries(repo-scan_lib
   PUBLIC
     nlohmann_json::nlohmann_json
 )
 
 target_link_libraries(repo-scan PRIVATE repo-scan_lib)
+
+option(BUILD_TESTS "Build tests" OFF)
+
+if(BUILD_TESTS)
+  FetchContent_Declare(
+    googletest
+    GIT_REPOSITORY https://github.com/google/googletest.git
+    GIT_TAG        v1.14.0
+  )
+  FetchContent_MakeAvailable(googletest)
+
+  enable_testing()
+
+  add_executable(repo_scan_tests
+    tests/test_orchestrator.cpp
+  )
+  target_link_libraries(repo_scan_tests
+    PRIVATE repo-scan_lib GTest::gtest_main
+  )
+
+  target_compile_options(repo_scan_tests PRIVATE
+    -Wall -Wextra -Wpedantic -Werror
+)
+
+  include(GoogleTest)
+  gtest_discover_tests(repo_scan_tests)
+endif()
