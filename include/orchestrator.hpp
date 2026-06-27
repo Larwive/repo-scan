@@ -10,9 +10,9 @@
 
 class ScanOrchestrator {
 public:
-  ScanOrchestrator();
+  ScanOrchestrator(const std::vector<std::string> &skip = {});
 
-  Report run(const std::string &repoUrl);
+  Report run(const std::string& target, const std::string& clone_dir = "");
 
 private:
   std::vector<std::unique_ptr<Scanner>> scanners;

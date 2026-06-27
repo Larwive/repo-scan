@@ -8,41 +8,59 @@
 
 namespace fs = std::filesystem;
 
-ScanOrchestrator::ScanOrchestrator() {
+ScanOrchestrator::ScanOrchestrator(const std::vector<std::string> &skip) {
   auto semgrep = std::make_unique<SemgrepScanner>();
-  if (semgrep->isAvailable()) {
+  const bool skipped =
+      std::find(skip.begin(), skip.end(), semgrep->name) != skip.end();
+  if (!skipped && semgrep->isAvailable()) {
     scanners.push_back(std::move(semgrep));
     std::cout << "Semgrep scanner added to queue.\n";
-  } else {
-    std::cout << "Semgrep scanner skipped.\n";
   }
 }
 
-Report ScanOrchestrator::run(const std::string &repoUrl) {
-  std::string repo_scan_path = std::string(getenv("HOME")) + "/repo-scanned/";
-  std::string mkdir_command = "mkdir -p " + repo_scan_path;
-  std::system(mkdir_command.c_str());
+Report ScanOrchestrator::run(const std::string &target, const std::string &clone_dir) {
+  std::string repo_path;
 
-  std::string repo_name = repoUrl.substr(repoUrl.find_last_of("/") + 1);
-  std::string repo_path = repo_scan_path + repo_name;
+  if (fs::exists(target)) {
+    repo_path = target; // local repository
+  } else {
+    const char *home = getenv("HOME");
+    std::string base =
+        clone_dir.empty()
+            ? (home ? std::string(home) + "/repo-scanned/"
+                    : fs::temp_directory_path().string() + "/repo-scanned/")
+            : clone_dir;
 
-  if (fs::exists(repo_path)) {
-    if (fs::exists(repo_path + "/.git")) {
+    fs::create_directories(base);
+
+    std::string stripped = target;
+    if (!stripped.empty() && stripped.back() == '/')
+      stripped.pop_back();
+    if (stripped.size() >= 4 &&
+        stripped.compare(stripped.size() - 4, 4, ".git") == 0)
+      stripped = stripped.substr(0, stripped.size() - 4);
+    std::string repo_name = stripped.substr(stripped.find_last_of("/\\") + 1);
+    repo_path = base + repo_name;
+
+    if (fs::exists(repo_path)) {
+      if (!fs::exists(repo_path + "/.git")) {
+        std::cerr << "Error: '" << repo_path
+                  << "' exists but is not a git repository.\n";
+        return {};
+      }
       std::cout << "Repository already present, skipping clone.\n";
     } else {
-      std::cerr << "Error: '" << repo_path
-                << "' exists but is not a git repository. Naming error ?\n";
-      return {};
+      int ret = std::system(
+          ("git clone " + target + " " + repo_path).c_str()); // TODO: execvp
+      if (ret != 0) {
+        std::cerr << "Error: git clone failed for '" << target << "'\n";
+        return {};
+      }
     }
-  } else {
-    std::string cmd = "git clone " + repoUrl + " " + repo_path;
-    std::system(cmd.c_str());
   }
 
   Report report;
-  for (auto &scanner : scanners) {
-    auto issues = scanner->scan(repo_path);
-    report.addIssues(issues);
-  }
+  for (auto &scanner : scanners)
+    report.addIssues(scanner->scan(repo_path));
   return report;
 }
